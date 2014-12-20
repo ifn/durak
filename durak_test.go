@@ -19,11 +19,11 @@ func TestDurak(*testing.T) {
 	}
 	defer conn.Close() //dbg
 
-	c := CardMsg{"S7"}
+	m := MoveMsg{"S7"}
 
 	n := 10
 	for i := 0; i < n; i++ {
-		err = conn.WriteJSON(c)
+		err = conn.WriteJSON(m)
 		if err != nil {
 			log.Println(err)
 			return

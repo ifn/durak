@@ -17,14 +17,14 @@ type DeskMsg struct {
 	Desk [][]string `json:"desk"`
 }
 
-type CardMsg struct {
+type MoveMsg struct {
 	Card string `json:"card"`
 }
 
 var CARD *regexp.Regexp = regexp.MustCompile(`[SCHD]([6-9JQKA]|10)`)
 
-func (self *CardMsg) isValid() bool {
-	return CARD.MatchString(self.Card)
+func isValidCard(c string) bool {
+	return CARD.MatchString(c)
 }
 
 var upgrader = websocket.Upgrader{
@@ -40,16 +40,17 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close() //dbg
 
-	var c CardMsg
+	var m MoveMsg
 
 	for {
-		err = conn.ReadJSON(&c)
+		err = conn.ReadJSON(&m)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
-		log.Println(c.isValid())
+		log.Println(m.Card)
+		log.Println(isValidCard(m.Card))
 	}
 }
 

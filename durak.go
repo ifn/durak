@@ -4,10 +4,28 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
+
+type ErrMsg struct {
+	Err string `json:"error"`
+}
+
+type DeskMsg struct {
+	Desk [][]string `json:"desk"`
+}
+
+type CardMsg struct {
+	Card string `json:"card"`
+}
+
+var CARD *regexp.Regexp = regexp.MustCompile(`[SCHD]([6-9JQKA]|10)`)
+
+func (self *CardMsg) isValid() bool {
+	return CARD.MatchString(self.Card)
+}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -20,28 +38,23 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	defer conn.Close()
+	defer conn.Close() //dbg
+
+	var c CardMsg
 
 	for {
-		messageType, p, err := conn.ReadMessage()
+		err = conn.ReadJSON(&c)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
-		log.Println(p)
-
-		if err = conn.WriteMessage(messageType, p); err != nil {
-			log.Println(err)
-			return
-		}
+		log.Println(c.isValid())
 	}
 }
 
 func main() {
-	r := mux.NewRouter()
-	r.HandleFunc("/move/{card:([SCHD]([6-9JQKA]|10))+}", handler).Methods("GET")
-	http.Handle("/", r)
-
+	http.HandleFunc("/", handler)
+	
 	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
 }

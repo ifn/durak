@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"testing"
 	"time"
@@ -9,26 +8,24 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func TestDurak(*testing.T) {
+func TestDurak(t *testing.T) {
 	cli := websocket.DefaultDialer
 
 	conn, _, err := cli.Dial("ws://localhost:"+os.Getenv("PORT"), nil)
 	if err != nil {
-		log.Println(err)
-		return
+		t.Fatal(err)
 	}
 	defer conn.Close() //dbg
 
 	m := MoveMsg{"S7"}
 
-	n := 10
+	n := 2
 	for i := 0; i < n; i++ {
 		err = conn.WriteJSON(m)
 		if err != nil {
-			log.Println(err)
-			return
+			t.Fatal(err)
 		}
 
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond)
 	}
 }

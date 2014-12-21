@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"runtime"
 
 	"github.com/gorilla/websocket"
 )
@@ -56,6 +57,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/", handler)
-	
+
 	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
+}
+
+func init() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 }

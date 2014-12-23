@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	//"regexp"
 	"runtime"
 
 	"github.com/gorilla/websocket"
@@ -19,16 +18,14 @@ type DeskMsg struct {
 	Desk [][]string `json:"desk"`
 }
 
-type CmdType int
-
 const (
-	Start CmdType = iota
+	Start int = iota
 	Move
 )
 
 type PlayerMsg struct {
-	Cmd  CmdType `json:"command"`
-	Card string  `json:"card"`
+	Cmd  int    `json:"command"`
+	Card string `json:"card"`
 }
 
 //var CARD *regexp.Regexp = regexp.MustCompile(`[SCHD]([6-9JQKA]|10)`)
@@ -37,25 +34,20 @@ type PlayerMsg struct {
 //	return CARD.MatchString(c)
 //}
 
-type durakSrv struct {
-	conn *websocket.Conn
-	fsm  *fsm.FSM
+type gameState struct {
+	// player that should make current move
+	p *websocket.Conn
+
+	trump string
+
+	fsm *fsm.FSM
 }
 
-func NewDurakSrv(conn *websocket.Conn) *durakSrv {
-	fsm := fsm.NewFSM(
-		"collection",
-		fsm.Events{
-			{Name: "start", Src: []string{"collection"}, Dst: "distribution"},
-			{Name: "move", Src: []string{"game"}, Dst: "game"},
-			{Name: "move", Src: []string{"game"}, Dst: "distribution"},
-			{Name: "move", Src: []string{"distribution"}, Dst: "game"},
-		},
-		fsm.Callbacks{},
-	)
+var GSt *gameState
 
-	d := durakSrv{conn, fsm}
-	return &d
+type durakSrv struct {
+	conn *websocket.Conn
+	gst  *gameState
 }
 
 func (self *durakSrv) read() {
@@ -70,9 +62,9 @@ func (self *durakSrv) read() {
 
 		switch m.Cmd {
 		case Start:
-			self.fsm.Event("start")
+			self.gst.fsm.Event("start")
 		case Move:
-			self.fsm.Event("move", m.Card)
+			self.gst.fsm.Event("move", m.Card)
 		}
 	}
 }
@@ -90,7 +82,7 @@ func durakHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close() //dbg
 
-	d := NewDurakSrv(conn)
+	d := durakSrv{conn, GSt}
 	d.read()
 }
 
@@ -102,4 +94,17 @@ func main() {
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	GSt = &gameState{
+		fsm: fsm.NewFSM(
+			"collection",
+			fsm.Events{
+				{Name: "start", Src: []string{"collection"}, Dst: "distribution"},
+				{Name: "move", Src: []string{"game"}, Dst: "game"},
+				{Name: "move", Src: []string{"game"}, Dst: "distribution"},
+				{Name: "move", Src: []string{"distribution"}, Dst: "game"},
+			},
+			fsm.Callbacks{},
+		),
+	}
 }

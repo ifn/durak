@@ -7,7 +7,6 @@ import (
 	"runtime"
 
 	"github.com/gorilla/websocket"
-	"github.com/looplab/fsm"
 )
 
 type ErrMsg struct {
@@ -28,22 +27,14 @@ type PlayerMsg struct {
 	Card string `json:"card"`
 }
 
-//var CARD *regexp.Regexp = regexp.MustCompile(`[SCHD]([6-9JQKA]|10)`)
-//
-//func isValidCard(c string) bool {
-//	return CARD.MatchString(c)
-//}
-
 type gameState struct {
-	// player that should make current move
+	// player that should make a current move
 	p *websocket.Conn
 
 	trump string
-
-	fsm *fsm.FSM
 }
 
-var GSt *gameState
+var GSt *gameState = &gameState{}
 
 type durakSrv struct {
 	conn *websocket.Conn
@@ -62,9 +53,9 @@ func (self *durakSrv) read() {
 
 		switch m.Cmd {
 		case Start:
-			self.gst.fsm.Event("start")
+			log.Println(Start)
 		case Move:
-			self.gst.fsm.Event("move", m.Card)
+			log.Println(Move, m.Card)
 		}
 	}
 }
@@ -94,17 +85,4 @@ func main() {
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	GSt = &gameState{
-		fsm: fsm.NewFSM(
-			"collection",
-			fsm.Events{
-				{Name: "start", Src: []string{"collection"}, Dst: "distribution"},
-				{Name: "move", Src: []string{"game"}, Dst: "game"},
-				{Name: "move", Src: []string{"game"}, Dst: "distribution"},
-				{Name: "move", Src: []string{"distribution"}, Dst: "game"},
-			},
-			fsm.Callbacks{},
-		),
-	}
 }

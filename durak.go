@@ -45,8 +45,6 @@ func stateToString(s sm.State) string {
 		stateCollection:   "COLLECTION",
 		stateDistribution: "DISTRIBUTION",
 		stateGame:         "GAME",
-
-		//stateClosed:  "CLOSED",
 	}[s]
 }
 
@@ -54,8 +52,6 @@ func cmdToString(t sm.EventType) string {
 	return [...]string{
 		cmdStart: "START",
 		cmdMove:  "MOVE",
-
-		//cmdClose: "CLOSE",
 	}[t]
 }
 
@@ -83,7 +79,6 @@ type gameState struct {
 func NewGameState() *gameState {
 	gst := new(gameState)
 
-	// wtf
 	gst.sm = sm.New(stateGame, uint(stateCount), uint(cmdCount))
 
 	gst.sm.On(cmdMove,
@@ -93,19 +88,23 @@ func NewGameState() *gameState {
 	return gst
 }
 
-func (self *gameState) handleMove(s sm.State, e *sm.Event) (next sm.State) {
+var GSt *gameState = NewGameState()
+
+// event handlers
+
+func (self *gameState) handleMove(s sm.State, e *sm.Event) sm.State {
 	conn := e.Data.(cmdArgs).conn
-	//card := e.Data.(cmdArgs).card
+	card := e.Data.(cmdArgs).card
 
 	if conn != self.p {
 		log.Printf("it's %v's turn to make a move", self.p)
 		return s
 	}
 
+	log.Println(card)
+
 	return s
 }
-
-var GSt *gameState = NewGameState()
 
 //
 
@@ -157,6 +156,8 @@ func durakHandler(w http.ResponseWriter, r *http.Request) {
 
 	d.read()
 }
+
+//
 
 func main() {
 	http.HandleFunc("/", durakHandler)

@@ -17,7 +17,7 @@ func TestDurak(t *testing.T) {
 	}
 	defer conn.Close() //dbg
 
-	m := PlayerMsg{Move, "S7"}
+	m := PlayerMsg{cmdMove, "S7"}
 
 	n := 2
 	for i := 0; i < n; i++ {

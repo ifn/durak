@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/gorilla/websocket"
+	sm "github.com/tchap/go-statemachine"
 )
 
 type ErrMsg struct {
@@ -17,24 +18,79 @@ type DeskMsg struct {
 	Desk [][]string `json:"desk"`
 }
 
-const (
-	Start int = iota
-	Move
-)
-
 type PlayerMsg struct {
-	Cmd  int    `json:"command"`
-	Card string `json:"card"`
+	Cmd  sm.EventType `json:"command"`
+	Card string       `json:"card"`
 }
 
+//
+
+const (
+	cmdStart sm.EventType = iota
+	cmdMove
+
+	cmdCount
+)
+
+const (
+	stateCollection sm.State = iota
+	stateDistribution
+	stateGame
+
+	stateCount
+)
+
+func stateToString(s sm.State) string {
+	return [...]string{
+		stateCollection:   "COLLECTION",
+		stateDistribution: "DISTRIBUTION",
+		stateGame:         "GAME",
+
+		//stateClosed:  "CLOSED",
+	}[s]
+}
+
+func cmdToString(t sm.EventType) string {
+	return [...]string{
+		cmdStart: "START",
+		cmdMove:  "MOVE",
+
+		//cmdClose: "CLOSE",
+	}[t]
+}
+
+//
+
 type gameState struct {
-	// player that should make a current move
+	// player that should make the current move
 	p *websocket.Conn
 
 	trump string
+
+	sm *sm.StateMachine
 }
 
-var GSt *gameState = &gameState{}
+func NewGameState() *gameState {
+	gst := new(gameState)
+
+	// wtf
+	gst.sm = sm.New(stateGame, uint(stateCount), uint(cmdCount))
+
+	gst.sm.On(cmdMove,
+		[]sm.State{stateGame},
+		gst.handleMove)
+
+	return gst
+}
+
+func (self *gameState) handleMove(s sm.State, e *sm.Event) (next sm.State) {
+	log.Println(e.Data)
+	return stateGame
+}
+
+var GSt *gameState = NewGameState()
+
+//
 
 type durakSrv struct {
 	conn *websocket.Conn
@@ -52,13 +108,18 @@ func (self *durakSrv) read() {
 		}
 
 		switch m.Cmd {
-		case Start:
-			log.Println(Start)
-		case Move:
-			log.Println(Move, m.Card)
+		case cmdStart:
+		case cmdMove:
+			err = self.gst.sm.Emit(&sm.Event{cmdMove, m.Card})
+			if err != nil {
+				log.Println(err)
+				return
+			}
 		}
 	}
 }
+
+//
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -74,6 +135,7 @@ func durakHandler(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close() //dbg
 
 	d := durakSrv{conn, GSt}
+
 	d.read()
 }
 

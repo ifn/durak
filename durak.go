@@ -61,9 +61,19 @@ func cmdToString(t sm.EventType) string {
 
 //
 
+type cmdArgs struct {
+	conn *websocket.Conn
+	card string
+}
+
+//
+
 type gameState struct {
-	// player that should make the current move
+	// player that should make the move now
 	p *websocket.Conn
+
+	// card that should be beaten
+	card string
 
 	trump string
 
@@ -84,8 +94,15 @@ func NewGameState() *gameState {
 }
 
 func (self *gameState) handleMove(s sm.State, e *sm.Event) (next sm.State) {
-	log.Println(e.Data)
-	return stateGame
+	conn := e.Data.(cmdArgs).conn
+	//card := e.Data.(cmdArgs).card
+
+	if conn != self.p {
+		log.Printf("it's %v's turn to make a move", self.p)
+		return s
+	}
+
+	return s
 }
 
 var GSt *gameState = NewGameState()
@@ -110,7 +127,9 @@ func (self *durakSrv) read() {
 		switch m.Cmd {
 		case cmdStart:
 		case cmdMove:
-			err = self.gst.sm.Emit(&sm.Event{cmdMove, m.Card})
+			event := &sm.Event{cmdMove, cmdArgs{self.conn, m.Card}}
+
+			err = self.gst.sm.Emit(event)
 			if err != nil {
 				log.Println(err)
 				return

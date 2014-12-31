@@ -8,6 +8,33 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+func TestHigher(t *testing.T) {
+	r := higher("S7", "S6", "")
+	if r != 1 {
+		t.Fail()
+	}
+	r = higher("S6", "S7", "")
+	if r != -1 {
+		t.Fail()
+	}
+	r = higher("S6", "S6", "")
+	if r != 0 {
+		t.Fail()
+	}
+	r = higher("S6", "C7", "S")
+	if r != 1 {
+		t.Fail()
+	}
+	r = higher("S7", "C6", "C")
+	if r != -1 {
+		t.Fail()
+	}
+	r = higher("S7", "C6", "H")
+	if r != -2 {
+		t.Fail()
+	}
+}
+
 func TestDurak(t *testing.T) {
 	cli := websocket.DefaultDialer
 

@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"runtime"
 
 	"github.com/gorilla/websocket"
@@ -21,6 +22,45 @@ type DeskMsg struct {
 type PlayerMsg struct {
 	Cmd  sm.EventType `json:"command"`
 	Card string       `json:"card"`
+}
+
+//
+
+var Order map[string]int = map[string]int{
+	"6": 6, "7": 7, "8": 8, "9": 9, "10": 10,
+	"J": 11,
+	"Q": 12,
+	"K": 13,
+	"A": 14,
+}
+
+func higher(c0, c1, t string) int {
+	// c0 and c1 have the same suit
+	if c0[0] == c1[0] {
+		if Order[c0[1:]] > Order[c1[1:]] {
+			return 1
+		}
+		if Order[c0[1:]] < Order[c1[1:]] {
+			return -1
+		}
+		return 0
+	}
+	// c0 is trump, c1 is not
+	if c0[:1] == t {
+		return 1
+	}
+	// c1 is trump, c0 is not
+	if c1[:1] == t {
+		return -1
+	}
+	// suits are different, both are not trump
+	return -2
+}
+
+var CardRE *regexp.Regexp = regexp.MustCompile(`[SCHD]([6-9JQKA]|10)`)
+
+func isValid(c string) bool {
+	return CardRE.MatchString(c)
 }
 
 //

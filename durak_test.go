@@ -35,6 +35,12 @@ func TestHigher(t *testing.T) {
 	}
 }
 
+func TestIsValid(t *testing.T) {
+	if !isValid("S7") || !isValid("H10") || !isValid("DQ") {
+		t.Fail()
+	}
+}
+
 func TestDurak(t *testing.T) {
 	cli := websocket.DefaultDialer
 

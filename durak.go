@@ -11,10 +11,6 @@ import (
 	sm "github.com/tchap/go-statemachine"
 )
 
-type ErrMsg struct {
-	Err string `json:"error"`
-}
-
 type DeskMsg struct {
 	Desk [][]string `json:"desk"`
 }
@@ -77,6 +73,10 @@ const (
 	stateDistribution
 	stateGame
 
+	stateAttack
+	stateDefense
+	statePoll
+
 	stateCount
 )
 
@@ -105,15 +105,33 @@ type cmdArgs struct {
 //
 
 type gameState struct {
-	// player that should make the move now
-	p *websocket.Conn
-
-	// card that should be beaten
-	card string
-
+	// trump suit
 	trump string
 
+	// attacker
+	aconn *websocket.Conn
+	// defender
+	dconn *websocket.Conn
+	// card that should be beaten
+	cardToBeat string
+
 	sm *sm.StateMachine
+}
+
+func (self *gameState) nextAttacker() *websocket.Conn {
+	return nil
+}
+
+func (self *gameState) nextDefender() *websocket.Conn {
+	return nil
+}
+
+func logOutOfTurn(conn *websocket.Conn) {
+	log.Printf("out of turn: %v", conn)
+}
+
+func logWontBeat(c1, c2, t string) {
+	log.Printf("%v won't bit %v, trump is ", c1, c2, t)
 }
 
 func NewGameState() *gameState {
@@ -122,8 +140,14 @@ func NewGameState() *gameState {
 	gst.sm = sm.New(stateGame, uint(stateCount), uint(cmdCount))
 
 	gst.sm.On(cmdMove,
-		[]sm.State{stateGame},
-		gst.handleMove)
+		[]sm.State{stateAttack},
+		gst.handleMoveInAttack,
+	)
+
+	gst.sm.On(cmdMove,
+		[]sm.State{stateDefense},
+		gst.handleMoveInDefense,
+	)
 
 	return gst
 }
@@ -132,18 +156,52 @@ var GSt *gameState = NewGameState()
 
 // event handlers
 
-func (self *gameState) handleMove(s sm.State, e *sm.Event) sm.State {
+func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {
 	conn := e.Data.(cmdArgs).conn
 	card := e.Data.(cmdArgs).card
 
-	if conn != self.p {
-		log.Printf("it's %v's turn to make a move", self.p)
+	if conn != self.aconn {
+		logOutOfTurn(conn)
 		return s
 	}
 
-	log.Println(card)
+	// attacker won't push more cards
+	if card == "" {
+		self.aconn = self.nextAttacker()
+		return s
+	}
 
-	return s
+	self.cardToBeat = card
+
+	return stateDefense
+}
+
+func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
+	conn := e.Data.(cmdArgs).conn
+	card := e.Data.(cmdArgs).card
+
+	if conn != self.dconn {
+		logOutOfTurn(conn)
+		return s
+	}
+
+	// defender takes the cards
+	if card == "" {
+		self.aconn = self.nextAttacker()
+		self.dconn = self.nextDefender()
+
+		//distribute cards
+
+		return stateAttack
+	}
+
+	// check that the sent card is capable to beat
+	if higher(card, self.cardToBeat, self.trump) != 1 {
+		logWontBeat(card, self.cardToBeat, self.trump)
+		return s
+	}
+
+	return statePoll
 }
 
 //

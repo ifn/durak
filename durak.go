@@ -75,7 +75,6 @@ const (
 
 	stateAttack
 	stateDefense
-	statePoll
 
 	stateCount
 )
@@ -201,7 +200,7 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 		return s
 	}
 
-	return statePoll
+	return stateAttack
 }
 
 //

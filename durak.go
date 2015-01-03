@@ -70,8 +70,6 @@ const (
 
 const (
 	stateCollection sm.State = iota
-	stateDistribution
-	stateGame
 
 	stateAttack
 	stateDefense
@@ -81,9 +79,7 @@ const (
 
 func stateToString(s sm.State) string {
 	return [...]string{
-		stateCollection:   "COLLECTION",
-		stateDistribution: "DISTRIBUTION",
-		stateGame:         "GAME",
+		stateCollection: "COLLECTION",
 	}[s]
 }
 
@@ -104,17 +100,26 @@ type cmdArgs struct {
 //
 
 type gameState struct {
+	// 1. fields that don't change during a game
+
+	sm *sm.StateMachine
+
 	// trump suit
 	trump string
 
-	// attacker
-	aconn *websocket.Conn
+	// 2. fields that don't change during a round
+
+	// attacker that started a round
+	aconnStart *websocket.Conn
 	// defender
 	dconn *websocket.Conn
+
+	// 3. fields that change during a round
+
+	// attacker
+	aconn *websocket.Conn
 	// card that should be beaten
 	cardToBeat string
-
-	sm *sm.StateMachine
 }
 
 func (self *gameState) nextAttacker() *websocket.Conn {
@@ -125,8 +130,14 @@ func (self *gameState) nextDefender() *websocket.Conn {
 	return nil
 }
 
+func (self *gameState) distributeCards() {
+}
+
+func (self *gameState) finishRound() {
+}
+
 func logOutOfTurn(conn *websocket.Conn) {
-	log.Printf("out of turn: %v", conn)
+	log.Printf("out of turn: %v", conn.RemoteAddr())
 }
 
 func logWontBeat(c1, c2, t string) {
@@ -136,13 +147,12 @@ func logWontBeat(c1, c2, t string) {
 func NewGameState() *gameState {
 	gst := new(gameState)
 
-	gst.sm = sm.New(stateGame, uint(stateCount), uint(cmdCount))
+	gst.sm = sm.New(stateAttack, uint(stateCount), uint(cmdCount))
 
 	gst.sm.On(cmdMove,
 		[]sm.State{stateAttack},
 		gst.handleMoveInAttack,
 	)
-
 	gst.sm.On(cmdMove,
 		[]sm.State{stateDefense},
 		gst.handleMoveInDefense,
@@ -159,26 +169,37 @@ func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {
 	conn := e.Data.(cmdArgs).conn
 	card := e.Data.(cmdArgs).card
 
+	// check that it's conn's turn to move
 	if conn != self.aconn {
 		logOutOfTurn(conn)
 		return s
 	}
 
-	// attacker won't push more cards
-	if card == "" {
-		self.aconn = self.nextAttacker()
-		return s
+	// attacker sent the card
+	if card != "" {
+		self.cardToBeat = card
+		return stateDefense
 	}
 
-	self.cardToBeat = card
+	// attacker sent no card
 
-	return stateDefense
+	aconn := self.nextAttacker()
+
+	// check if all attackers have been polled
+	if aconn == self.aconnStart {
+		self.finishRound()
+		return stateAttack
+	}
+
+	self.aconn = aconn
+	return stateAttack
 }
 
 func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 	conn := e.Data.(cmdArgs).conn
 	card := e.Data.(cmdArgs).card
 
+	// check that it's conn's turn to move
 	if conn != self.dconn {
 		logOutOfTurn(conn)
 		return s
@@ -186,11 +207,7 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 
 	// defender takes the cards
 	if card == "" {
-		self.aconn = self.nextAttacker()
-		self.dconn = self.nextDefender()
-
-		//distribute cards
-
+		self.finishRound()
 		return stateAttack
 	}
 

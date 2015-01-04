@@ -104,7 +104,8 @@ type cmdArgs struct {
 type gameState struct {
 	// 1. fields that don't change during a game
 
-	sm *sm.StateMachine
+	sm  *sm.StateMachine
+	hub []*websocket.Conn
 
 	// trump suit
 	trump string
@@ -270,15 +271,24 @@ func durakHandler(w http.ResponseWriter, r *http.Request) {
 
 	d := durakSrv{conn, GSt}
 
+	GSt.hub = append(GSt.hub, conn)
+
 	d.read()
 }
 
 //
 
-func main() {
+func startDurakSrv() error {
 	http.HandleFunc("/", durakHandler)
 
-	log.Fatal(http.ListenAndServe(":"+os.Getenv("PORT"), nil))
+	return http.ListenAndServe(":"+os.Getenv("PORT"), nil)
+}
+
+func main() {
+	err := startDurakSrv()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func init() {

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -40,7 +41,18 @@ func TestIsValid(t *testing.T) {
 	}
 }
 
-func TestDurak(t *testing.T) {
+func TestDurakMove(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	go func() {
+		err := startDurakSrv()
+		if err != nil {
+			t.Log(err)
+		}
+	}()
+
 	cli := websocket.DefaultDialer
 
 	conn, _, err := cli.Dial("ws://localhost:"+os.Getenv("PORT"), nil)
@@ -48,6 +60,9 @@ func TestDurak(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close() //dbg
+
+	time.Sleep(time.Millisecond * 100)
+	GSt.aconn = GSt.hub[0]
 
 	GSt.sm.SetState(stateAttack)
 
@@ -58,8 +73,26 @@ func TestDurak(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	time.Sleep(time.Millisecond * 100)
 	state := GSt.sm.GetState()
 	if state != stateDefense {
 		t.Fatalf("%v, expected %v", stateToString(state), stateToString(stateDefense))
+	}
+}
+
+func TestDurak(t *testing.T) {
+	cli := websocket.DefaultDialer
+
+	conn, _, err := cli.Dial("ws://localhost:"+os.Getenv("PORT"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close() //dbg
+
+	m := PlayerMsg{cmdMove, "C9"}
+
+	err = conn.WriteJSON(m)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

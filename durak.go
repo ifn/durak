@@ -80,6 +80,8 @@ const (
 func stateToString(s sm.State) string {
 	return [...]string{
 		stateCollection: "COLLECTION",
+		stateDefense:    "DEFENSE",
+		stateAttack:     "ATTACK",
 	}[s]
 }
 

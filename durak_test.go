@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"testing"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -50,15 +49,17 @@ func TestDurak(t *testing.T) {
 	}
 	defer conn.Close() //dbg
 
-	m := PlayerMsg{cmdMove, "S7"}
+	GSt.sm.SetState(stateAttack)
 
-	n := 2
-	for i := 0; i < n; i++ {
-		err = conn.WriteJSON(m)
-		if err != nil {
-			t.Fatal(err)
-		}
+	m := PlayerMsg{cmdMove, "C9"}
 
-		time.Sleep(250 * time.Millisecond)
+	err = conn.WriteJSON(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	state := GSt.sm.GetState()
+	if state != stateDefense {
+		t.Fatalf("%v, expected %v", stateToString(state), stateToString(stateDefense))
 	}
 }

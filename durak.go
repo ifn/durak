@@ -104,8 +104,8 @@ type cmdArgs struct {
 type gameState struct {
 	// 1. fields that don't change during a game
 
-	sm  *sm.StateMachine
-	hub []*websocket.Conn
+	sm *sm.StateMachine
+	h  *hub
 
 	// trump suit
 	trump string
@@ -160,6 +160,8 @@ func NewGameState() *gameState {
 		[]sm.State{stateDefense},
 		gst.handleMoveInDefense,
 	)
+
+	gst.h = NewHub()
 
 	return gst
 }
@@ -223,12 +225,17 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 
 //
 
-type playerSrv struct {
+type playerConn struct {
 	conn *websocket.Conn
 	gst  *gameState
+	ch   chan []byte
 }
 
-func (self *playerSrv) read() {
+func (self *playerConn) GetChan() chan<- []byte {
+	return self.ch
+}
+
+func (self *playerConn) read() {
 	var m PlayerMsg
 
 	for {
@@ -269,9 +276,9 @@ func playerHandler(gst *gameState) http.HandlerFunc {
 		}
 		defer conn.Close() //dbg
 
-		p := playerSrv{conn, gst}
+		p := playerConn{conn, gst, make(chan []byte)}
 
-		//GSt.hub = append(GSt.hub, conn)
+		gst.h.register <- &p
 
 		p.read()
 	}

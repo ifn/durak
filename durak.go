@@ -164,8 +164,6 @@ func NewGameState() *gameState {
 	return gst
 }
 
-var GSt *gameState = NewGameState()
-
 // event handlers
 
 func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {
@@ -225,12 +223,12 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 
 //
 
-type durakSrv struct {
+type playerSrv struct {
 	conn *websocket.Conn
 	gst  *gameState
 }
 
-func (self *durakSrv) read() {
+func (self *playerSrv) read() {
 	var m PlayerMsg
 
 	for {
@@ -242,6 +240,7 @@ func (self *durakSrv) read() {
 
 		switch m.Cmd {
 		case cmdStart:
+			log.Println(cmdToString(cmdStart))
 		case cmdMove:
 			event := &sm.Event{cmdMove, cmdArgs{self.conn, m.Card}}
 
@@ -261,25 +260,29 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func durakHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		return
+func playerHandler(gst *gameState) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		defer conn.Close() //dbg
+
+		p := playerSrv{conn, gst}
+
+		//GSt.hub = append(GSt.hub, conn)
+
+		p.read()
 	}
-	defer conn.Close() //dbg
-
-	d := durakSrv{conn, GSt}
-
-	GSt.hub = append(GSt.hub, conn)
-
-	d.read()
 }
 
 //
 
 func startDurakSrv() error {
-	http.HandleFunc("/", durakHandler)
+	gst := NewGameState()
+
+	http.HandleFunc("/", playerHandler(gst))
 
 	return http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 }

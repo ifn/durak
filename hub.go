@@ -20,7 +20,7 @@ type hub struct {
 }
 
 func NewHub() *hub {
-	h := hub{
+	h := &hub{
 		connections: make(map[Sender]bool),
 		register:    make(chan Sender),
 		unregister:  make(chan Sender),
@@ -29,7 +29,7 @@ func NewHub() *hub {
 
 	go h.run()
 
-	return &h
+	return h
 }
 
 func (h *hub) run() {

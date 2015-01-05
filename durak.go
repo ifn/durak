@@ -276,9 +276,9 @@ func playerHandler(gst *gameState) http.HandlerFunc {
 		}
 		defer conn.Close() //dbg
 
-		p := playerConn{conn, gst, make(chan []byte)}
+		p := &playerConn{conn, gst, make(chan []byte)}
 
-		gst.h.register <- &p
+		gst.h.register <- p
 
 		p.read()
 	}

@@ -1,30 +1,26 @@
 package main
 
-// FIXME: bad name
-type Sender interface {
-	// Channel used to send outbound messages from hub to connections.
-	GetChan() chan<- []byte
-}
-
 type hub struct {
 	// Registered connections.
-	connections map[Sender]bool
+	conns map[*playerConn]int
+	// Registered connections' order.
+	connOrder []*playerConn
 
-	// Channel used to register connections in hub.
-	register chan Sender
-	// Channel used to unregister connections in hub.
-	unregister chan Sender
+	// Channel used to register connections in the hub.
+	regChan chan *playerConn
+	// Channel used to unregister connections in the hub.
+	unregChan chan *playerConn
 
 	// Inbound messages from the connections.
-	broadcast chan []byte
+	bcastChan chan []byte
 }
 
 func NewHub() *hub {
 	h := &hub{
-		connections: make(map[Sender]bool),
-		register:    make(chan Sender),
-		unregister:  make(chan Sender),
-		broadcast:   make(chan []byte),
+		conns:     make(map[*playerConn]int),
+		regChan:   make(chan *playerConn),
+		unregChan: make(chan *playerConn),
+		bcastChan: make(chan []byte),
 	}
 
 	go h.run()
@@ -32,23 +28,36 @@ func NewHub() *hub {
 	return h
 }
 
+func (h *hub) register(c *playerConn) {
+	h.conns[c] = len(h.connOrder)
+
+	h.connOrder = append(h.connOrder, c)
+}
+
+func (h *hub) unregister(c *playerConn) {
+	pos := h.conns[c]
+	h.connOrder[pos] = nil
+
+	delete(h.conns, c)
+
+	close(c.hubToConn)
+}
+
 func (h *hub) run() {
 	for {
 		select {
-		case c := <-h.register:
-			h.connections[c] = true
-		case c := <-h.unregister:
-			if _, ok := h.connections[c]; ok {
-				delete(h.connections, c)
-				close(c.GetChan())
+		case c := <-h.regChan:
+			h.register(c)
+		case c := <-h.unregChan:
+			if _, ok := h.conns[c]; ok {
+				h.unregister(c)
 			}
-		case m := <-h.broadcast:
-			for c := range h.connections {
+		case m := <-h.bcastChan:
+			for c := range h.conns {
 				select {
-				case c.GetChan() <- m:
+				case c.hubToConn <- m:
 				default:
-					delete(h.connections, c)
-					close(c.GetChan())
+					h.unregister(c)
 				}
 			}
 		}

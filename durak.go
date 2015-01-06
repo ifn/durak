@@ -226,13 +226,10 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 //
 
 type playerConn struct {
-	conn *websocket.Conn
-	gst  *gameState
-	ch   chan []byte
-}
+	gst *gameState
 
-func (self *playerConn) GetChan() chan<- []byte {
-	return self.ch
+	conn      *websocket.Conn
+	hubToConn chan []byte
 }
 
 func (self *playerConn) read() {
@@ -276,9 +273,9 @@ func playerHandler(gst *gameState) http.HandlerFunc {
 		}
 		defer conn.Close() //dbg
 
-		p := &playerConn{conn, gst, make(chan []byte)}
+		p := &playerConn{gst, conn, make(chan []byte)}
 
-		gst.h.register <- p
+		gst.h.regChan <- p
 
 		p.read()
 	}

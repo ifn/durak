@@ -1,10 +1,38 @@
 package main
 
+import (
+	"container/list"
+)
+
+// Ordered map.
+type mapList struct {
+	m map[*playerConn]*list.Element
+	l *list.List
+}
+
+func newMapList() *mapList {
+	return &mapList{
+		m: make(map[*playerConn]*list.Element),
+		l: list.New(),
+	}
+}
+
+func (self *mapList) Add(c *playerConn) {
+	self.m[c] = self.l.PushBack(c)
+}
+
+func (self *mapList) Remove(c *playerConn) {
+	if elem, ok := self.m[c]; ok {
+		self.l.Remove(elem)
+		delete(self.m, c)
+	}
+}
+
+//
+
 type hub struct {
 	// Registered connections.
-	conns map[*playerConn]int
-	// Registered connections' order.
-	connOrder []*playerConn
+	conns *mapList
 
 	// Channel used to register connections in the hub.
 	regChan chan *playerConn
@@ -17,7 +45,7 @@ type hub struct {
 
 func NewHub() *hub {
 	h := &hub{
-		conns:     make(map[*playerConn]int),
+		conns:     newMapList(),
 		regChan:   make(chan *playerConn),
 		unregChan: make(chan *playerConn),
 		bcastChan: make(chan []byte),
@@ -29,18 +57,23 @@ func NewHub() *hub {
 }
 
 func (h *hub) register(c *playerConn) {
-	h.conns[c] = len(h.connOrder)
-
-	h.connOrder = append(h.connOrder, c)
+	h.conns.Add(c)
 }
 
 func (h *hub) unregister(c *playerConn) {
-	pos := h.conns[c]
-	h.connOrder[pos] = nil
-
-	delete(h.conns, c)
+	h.conns.Remove(c)
 
 	close(c.hubToConn)
+}
+
+func (h *hub) sendBcast(m []byte) {
+	for c := range h.conns.m {
+		select {
+		case c.hubToConn <- m:
+		default:
+			h.unregister(c)
+		}
+	}
 }
 
 func (h *hub) run() {
@@ -49,17 +82,9 @@ func (h *hub) run() {
 		case c := <-h.regChan:
 			h.register(c)
 		case c := <-h.unregChan:
-			if _, ok := h.conns[c]; ok {
-				h.unregister(c)
-			}
+			h.unregister(c)
 		case m := <-h.bcastChan:
-			for c := range h.conns {
-				select {
-				case c.hubToConn <- m:
-				default:
-					h.unregister(c)
-				}
-			}
+			h.sendBcast(m)
 		}
 	}
 }

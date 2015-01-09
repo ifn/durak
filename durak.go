@@ -95,7 +95,7 @@ func cmdToString(t sm.EventType) string {
 //
 
 type cmdArgs struct {
-	conn *websocket.Conn
+	conn *playerConn
 	card string
 }
 
@@ -104,8 +104,8 @@ type cmdArgs struct {
 type gameState struct {
 	// 1. fields that don't change during a game
 
-	sm *sm.StateMachine
-	h  *hub
+	sm  *sm.StateMachine
+	hub *hub
 
 	// trump suit
 	trump string
@@ -113,20 +113,20 @@ type gameState struct {
 	// 2. fields that don't change during a round
 
 	// attacker that started a round
-	aconnStart *websocket.Conn
+	aconnStart *playerConn
 	// defender
-	dconn *websocket.Conn
+	dconn *playerConn
 
 	// 3. fields that change during a round
 
 	// attacker
-	aconn *websocket.Conn
+	aconn *playerConn
 	// card that should be beaten
 	cardToBeat string
 }
 
-func (self *gameState) nextAttacker() *websocket.Conn {
-	return nil
+func (self *gameState) nextAttacker() *playerConn {
+	return self.hub.conns.m[self.aconn].Next().Value.(*playerConn)
 }
 
 func (self *gameState) nextDefender() *websocket.Conn {
@@ -139,8 +139,8 @@ func (self *gameState) distributeCards() {
 func (self *gameState) finishRound() {
 }
 
-func logOutOfTurn(conn *websocket.Conn) {
-	log.Printf("out of turn: %v", conn.RemoteAddr())
+func logOutOfTurn(pconn *playerConn) {
+	log.Printf("out of turn: %v", pconn.conn.RemoteAddr())
 }
 
 func logWontBeat(c1, c2, t string) {
@@ -161,7 +161,7 @@ func NewGameState() *gameState {
 		gst.handleMoveInDefense,
 	)
 
-	gst.h = NewHub()
+	gst.hub = NewHub()
 
 	return gst
 }
@@ -246,7 +246,7 @@ func (self *playerConn) read() {
 		case cmdStart:
 			log.Println(cmdToString(cmdStart))
 		case cmdMove:
-			event := &sm.Event{cmdMove, cmdArgs{self.conn, m.Card}}
+			event := &sm.Event{cmdMove, cmdArgs{self, m.Card}}
 
 			err = self.gst.sm.Emit(event)
 			if err != nil {
@@ -275,7 +275,7 @@ func playerHandler(gst *gameState) http.HandlerFunc {
 
 		p := &playerConn{gst, conn, make(chan []byte)}
 
-		gst.h.regChan <- p
+		gst.hub.regChan <- p
 
 		p.read()
 	}

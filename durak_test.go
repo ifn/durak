@@ -40,6 +40,64 @@ func TestIsValid(t *testing.T) {
 	}
 }
 
+//
+
+func TestMapRing1(t *testing.T) {
+	mr := newMapRing()
+	pc := new(playerConn)
+
+	if len(mr.m) != 0 ||
+		mr.r != nil {
+		t.Fail()
+	}
+
+	mr.Add(pc)
+
+	r := mr.m[pc]
+
+	if len(mr.m) != 1 || mr.r.Len() != 1 ||
+		mr.r != r {
+		t.Fail()
+	}
+
+	mr.Remove(pc)
+
+	if len(mr.m) != 0 ||
+		mr.r != nil {
+		t.Fail()
+	}
+}
+
+func TestMapRing2(t *testing.T) {
+	mr := newMapRing()
+	pc1 := new(playerConn)
+	pc2 := new(playerConn)
+
+	mr.Add(pc1)
+	mr.Add(pc2)
+
+	r1 := mr.m[pc1]
+	r2 := mr.m[pc2]
+
+	if len(mr.m) != 2 || mr.r.Len() != 2 ||
+		r1.Next() != r2 || r2.Next() != r1 ||
+		mr.r != r2 {
+		t.Fail()
+	}
+
+	mr.Remove(pc2)
+
+	r1 = mr.m[pc1]
+
+	if len(mr.m) != 1 || mr.r.Len() != 1 ||
+		r1.Next() != r1 ||
+		mr.r != r1 {
+		t.Fail()
+	}
+}
+
+//
+
 func TestDurak(t *testing.T) {
 	cli := websocket.DefaultDialer
 

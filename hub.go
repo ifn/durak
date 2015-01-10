@@ -20,24 +20,31 @@ func (self *mapRing) Add(c *playerConn) {
 	r := ring.New(1)
 	r.Value = c
 
-	if self.r == nil {
-		self.r = r
-	} else {
+	if self.r != nil {
 		self.r.Link(r)
 	}
+	self.r = r
 
 	self.m[c] = r
 }
 
 func (self *mapRing) Remove(c *playerConn) {
-	self.m[c].Prev().Unlink(1)
+	r := self.m[c]
+	prev := r.Prev()
+
+	prev.Unlink(1)
 
 	delete(self.m, c)
+
+	if len(self.m) == 0 {
+		self.r = nil
+	} else if self.r == r {
+		self.r = prev
+	}
 }
 
-// Next by the clockwise order.
 func (self *mapRing) Next(c *playerConn) *playerConn {
-	return self.m[c].Prev().Value.(*playerConn)
+	return self.m[c].Next().Value.(*playerConn)
 }
 
 //

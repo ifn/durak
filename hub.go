@@ -6,8 +6,8 @@ import (
 
 // Ordered map.
 type mapRing struct {
-	m map[*playerConn]*ring.Ring
-	r *ring.Ring
+	m map[*playerConn]*ring.Ring // Maps conns to their position in the circular list.
+	r *ring.Ring                 // Last added conn.
 }
 
 func newMapRing() *mapRing {
@@ -44,7 +44,10 @@ func (self *mapRing) Remove(c *playerConn) {
 }
 
 func (self *mapRing) Next(c *playerConn) *playerConn {
-	return self.m[c].Next().Value.(*playerConn)
+	if r, ok := self.m[c]; ok {
+		return r.Next().Value.(*playerConn)
+	}
+	return nil
 }
 
 //

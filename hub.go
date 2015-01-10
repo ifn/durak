@@ -1,38 +1,50 @@
 package main
 
 import (
-	"container/list"
+	"container/ring"
 )
 
 // Ordered map.
-type mapList struct {
-	m map[*playerConn]*list.Element
-	l *list.List
+type mapRing struct {
+	m map[*playerConn]*ring.Ring
+	r *ring.Ring
 }
 
-func newMapList() *mapList {
-	return &mapList{
-		m: make(map[*playerConn]*list.Element),
-		l: list.New(),
+func newMapRing() *mapRing {
+	return &mapRing{
+		m: make(map[*playerConn]*ring.Ring),
 	}
 }
 
-func (self *mapList) Add(c *playerConn) {
-	self.m[c] = self.l.PushBack(c)
+func (self *mapRing) Add(c *playerConn) {
+	r := ring.New(1)
+	r.Value = c
+
+	if self.r == nil {
+		self.r = r
+	} else {
+		self.r.Link(r)
+	}
+
+	self.m[c] = r
 }
 
-func (self *mapList) Remove(c *playerConn) {
-	if elem, ok := self.m[c]; ok {
-		self.l.Remove(elem)
-		delete(self.m, c)
-	}
+func (self *mapRing) Remove(c *playerConn) {
+	self.m[c].Prev().Unlink(1)
+
+	delete(self.m, c)
+}
+
+// Next by the clockwise order.
+func (self *mapRing) Next(c *playerConn) *playerConn {
+	return self.m[c].Prev().Value.(*playerConn)
 }
 
 //
 
 type hub struct {
 	// Registered connections.
-	conns *mapList
+	conns *mapRing
 
 	// Channel used to register connections in the hub.
 	regChan chan *playerConn
@@ -45,7 +57,7 @@ type hub struct {
 
 func NewHub() *hub {
 	h := &hub{
-		conns:     newMapList(),
+		conns:     newMapRing(),
 		regChan:   make(chan *playerConn),
 		unregChan: make(chan *playerConn),
 		bcastChan: make(chan []byte),

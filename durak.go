@@ -126,7 +126,11 @@ type gameState struct {
 }
 
 func (self *gameState) nextAttacker() *playerConn {
-	return self.hub.conns.m[self.aconn].Next().Value.(*playerConn)
+	na := self.hub.conns.Next(self.aconn)
+	if na == self.dconn {
+		na = self.hub.conns.Next(na)
+	}
+	return na
 }
 
 func (self *gameState) nextDefender() *websocket.Conn {
@@ -139,6 +143,8 @@ func (self *gameState) distributeCards() {
 func (self *gameState) finishRound() {
 }
 
+//
+
 func logOutOfTurn(pconn *playerConn) {
 	log.Printf("out of turn: %v", pconn.conn.RemoteAddr())
 }
@@ -146,6 +152,8 @@ func logOutOfTurn(pconn *playerConn) {
 func logWontBeat(c1, c2, t string) {
 	log.Printf("%v won't bit %v, trump is ", c1, c2, t)
 }
+
+//
 
 func NewGameState() *gameState {
 	gst := new(gameState)

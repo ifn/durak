@@ -77,6 +77,13 @@ const (
 	stateCount
 )
 
+type roundResult bool
+
+const (
+	Beat       roundResult = true
+	DidNotBeat roundResult = false
+)
+
 func stateToString(s sm.State) string {
 	return [...]string{
 		stateCollection: "COLLECTION",
@@ -125,22 +132,18 @@ type gameState struct {
 	cardToBeat string
 }
 
-func (self *gameState) nextAttacker() *playerConn {
-	na := self.hub.conns.Next(self.aconn)
-	if na == self.dconn {
-		na = self.hub.conns.Next(na)
+func (self *gameState) nextPlayer(c *playerConn) *playerConn {
+	return self.hub.conns.Next(c)
+}
+
+func (self *gameState) finishRound(res roundResult) {
+	switch res {
+	case Beat:
+		self.aconn = self.dconn
+	case DidNotBeat:
+		self.aconn = self.nextPlayer(self.dconn)
 	}
-	return na
-}
-
-func (self *gameState) nextDefender() *websocket.Conn {
-	return nil
-}
-
-func (self *gameState) distributeCards() {
-}
-
-func (self *gameState) finishRound() {
+	self.dconn = self.nextPlayer(self.aconn)
 }
 
 //
@@ -194,11 +197,14 @@ func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {
 
 	// attacker sent no card
 
-	aconn := self.nextAttacker()
+	aconn := self.nextPlayer(self.aconn)
+	if aconn == self.dconn {
+		aconn = self.nextPlayer(aconn)
+	}
 
 	// check if all attackers have been polled
 	if aconn == self.aconnStart {
-		self.finishRound()
+		self.finishRound(Beat)
 		return stateAttack
 	}
 
@@ -218,7 +224,7 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 
 	// defender takes the cards
 	if card == "" {
-		self.finishRound()
+		self.finishRound(DidNotBeat)
 		return stateAttack
 	}
 

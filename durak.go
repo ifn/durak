@@ -80,8 +80,7 @@ const (
 type roundResult bool
 
 const (
-	Beat       roundResult = true
-	DidNotBeat roundResult = false
+	Beat roundResult = true
 )
 
 func stateToString(s sm.State) string {
@@ -140,7 +139,7 @@ func (self *gameState) finishRound(res roundResult) {
 	switch res {
 	case Beat:
 		self.aconn = self.dconn
-	case DidNotBeat:
+	case !Beat:
 		self.aconn = self.nextPlayer(self.dconn)
 	}
 	self.dconn = self.nextPlayer(self.aconn)
@@ -224,7 +223,7 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 
 	// defender takes the cards
 	if card == "" {
-		self.finishRound(DidNotBeat)
+		self.finishRound(!Beat)
 		return stateAttack
 	}
 

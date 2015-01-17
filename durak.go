@@ -8,7 +8,7 @@ import (
 	"runtime"
 
 	"github.com/gorilla/websocket"
-	sm "github.com/tchap/go-statemachine"
+	sm "github.com/ifn/go-statemachine"
 )
 
 type DeskMsg struct {

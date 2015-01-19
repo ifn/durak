@@ -171,12 +171,23 @@ func NewGameState() *gameState {
 		gst.handleMoveInDefense,
 	)
 
+	gst.sm.On(cmdMove,
+		[]sm.State{stateAttack, stateDefense},
+		gst.showDesk,
+	)
+
 	gst.hub = NewHub()
 
 	return gst
 }
 
 // event handlers
+
+func (self *gameState) showDesk(s sm.State, e *sm.Event) sm.State {
+	log.Println("showDesk")
+
+	return s
+}
 
 func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {
 	conn := e.Data.(cmdArgs).conn
@@ -245,7 +256,35 @@ type playerConn struct {
 	hubToConn chan []byte
 }
 
+func (self *playerConn) write() {
+	defer func() {
+		err := self.conn.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}()
+
+	for {
+		select {
+		case m := <-self.hubToConn:
+			//TODO: text or binary?
+			err := self.conn.WriteMessage(websocket.TextMessage, m)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+		}
+	}
+}
+
 func (self *playerConn) read() {
+	defer func() {
+		err := self.conn.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}()
+
 	var m PlayerMsg
 
 	for {
@@ -284,12 +323,15 @@ func playerHandler(gst *gameState) http.HandlerFunc {
 			log.Println(err)
 			return
 		}
-		defer conn.Close() //dbg
 
 		p := &playerConn{gst, conn, make(chan []byte)}
 
 		gst.hub.regChan <- p
+		defer func() {
+			gst.hub.unregChan <- p
+		}()
 
+		go p.write()
 		p.read()
 	}
 }

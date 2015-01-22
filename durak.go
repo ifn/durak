@@ -182,6 +182,9 @@ func NewGameState() *gameState {
 }
 
 // event handlers
+// event handlers are actually transition functions.
+// in case error event handler should neither change the gameState,
+// nor return the state value different from passed to it as an argument.
 
 func (self *gameState) showDesk(s sm.State, e *sm.Event) sm.State {
 	log.Println("showDesk")

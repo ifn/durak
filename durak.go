@@ -266,7 +266,10 @@ func (self *playerConn) write() {
 
 	for {
 		select {
-		case m := <-self.hubToConn:
+		case m, ok := <-self.hubToConn:
+			if !ok {
+				return
+			}
 			//TODO: text or binary?
 			err := self.conn.WriteMessage(websocket.TextMessage, m)
 			if err != nil {

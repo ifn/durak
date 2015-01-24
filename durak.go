@@ -337,7 +337,6 @@ func (self *playerConn) read() {
 		err = self.gst.sm.Emit(event)
 		if err != nil {
 			log.Println(err)
-			return //TODO: replace by continue?
 		}
 	}
 }

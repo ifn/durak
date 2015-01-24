@@ -133,7 +133,7 @@ type gameState struct {
 }
 
 func (self *gameState) nextPlayer(c *playerConn) *playerConn {
-	return self.hub.conns.Next(c)
+	return self.hub.conns.(*mapRing).Next(c).(*playerConn)
 }
 
 func (self *gameState) finishRound(res roundResult) {
@@ -144,6 +144,11 @@ func (self *gameState) finishRound(res roundResult) {
 		self.aconn = self.nextPlayer(self.dconn)
 	}
 	self.dconn = self.nextPlayer(self.aconn)
+}
+
+func (self *gameState) dealCards() {
+	for _ = range self.hub.conns.Enumerate() {
+	}
 }
 
 //
@@ -162,6 +167,11 @@ func NewGameState() *gameState {
 	gst := new(gameState)
 
 	gst.sm = sm.New(stateAttack, uint(stateCount), uint(cmdCount))
+
+	gst.sm.On(cmdStart,
+		[]sm.State{stateCollection},
+		gst.handleStartInCollection,
+	)
 
 	gst.sm.On(cmdMove,
 		[]sm.State{stateAttack},
@@ -197,6 +207,12 @@ func (self *gameState) showDesk(s sm.State, e *sm.Event) sm.State {
 	self.hub.bcastChan <- desk
 
 	return s
+}
+
+func (self *gameState) handleStartInCollection(s sm.State, e *sm.Event) sm.State {
+	self.dealCards()
+
+	return stateAttack
 }
 
 func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {

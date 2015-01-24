@@ -1,60 +1,14 @@
 package main
 
-import (
-	"container/ring"
-)
-
-// Ordered map.
-type mapRing struct {
-	m map[*playerConn]*ring.Ring // Maps conns to their position in the circular list.
-	r *ring.Ring                 // Last added conn.
+type collection interface {
+	Add(interface{})
+	Remove(interface{})
+	Enumerate() <-chan interface{}
 }
-
-func newMapRing() *mapRing {
-	return &mapRing{
-		m: make(map[*playerConn]*ring.Ring),
-	}
-}
-
-func (self *mapRing) Add(c *playerConn) {
-	r := ring.New(1)
-	r.Value = c
-
-	if self.r != nil {
-		self.r.Link(r)
-	}
-	self.r = r
-
-	self.m[c] = r
-}
-
-func (self *mapRing) Remove(c *playerConn) {
-	r := self.m[c]
-	prev := r.Prev()
-
-	prev.Unlink(1)
-
-	delete(self.m, c)
-
-	if len(self.m) == 0 {
-		self.r = nil
-	} else if self.r == r {
-		self.r = prev
-	}
-}
-
-func (self *mapRing) Next(c *playerConn) *playerConn {
-	if r, ok := self.m[c]; ok {
-		return r.Next().Value.(*playerConn)
-	}
-	return nil
-}
-
-//
 
 type hub struct {
 	// Registered connections.
-	conns *mapRing
+	conns collection
 
 	// Channel used to register connections in the hub.
 	regChan chan *playerConn
@@ -67,7 +21,7 @@ type hub struct {
 
 func NewHub() *hub {
 	h := &hub{
-		conns:     newMapRing(),
+		conns:     newMapRing(), //TODO: hub should know nothing about mapRing
 		regChan:   make(chan *playerConn),
 		unregChan: make(chan *playerConn),
 		bcastChan: make(chan []byte),
@@ -89,7 +43,9 @@ func (h *hub) unregister(c *playerConn) {
 }
 
 func (h *hub) sendBcast(m []byte) {
-	for c := range h.conns.m {
+	for c := range h.conns.Enumerate() {
+		c := c.(*playerConn)
+
 		select {
 		case c.hubToConn <- m:
 		default:

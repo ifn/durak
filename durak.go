@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -187,7 +188,13 @@ func NewGameState() *gameState {
 // nor return the state value different from passed to it as an argument.
 
 func (self *gameState) showDesk(s sm.State, e *sm.Event) sm.State {
-	log.Println("showDesk")
+	desk, err := json.Marshal(DeskMsg{})
+	if err != nil {
+		log.Println(err)
+		return s
+	}
+
+	self.hub.bcastChan <- desk
 
 	return s
 }

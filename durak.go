@@ -166,7 +166,7 @@ func logWontBeat(c1, c2, t string) {
 func NewGameState() *gameState {
 	gst := new(gameState)
 
-	gst.sm = sm.New(stateAttack, uint(stateCount), uint(cmdCount))
+	gst.sm = sm.New(stateCollection, uint(stateCount), uint(cmdCount))
 
 	gst.sm.On(cmdStart,
 		[]sm.State{stateCollection},
@@ -323,17 +323,21 @@ func (self *playerConn) read() {
 			return
 		}
 
+		var event *sm.Event
 		switch m.Cmd {
 		case cmdStart:
-			log.Println(cmdToString(cmdStart))
+			event = &sm.Event{cmdStart, nil}
 		case cmdMove:
-			event := &sm.Event{cmdMove, cmdArgs{self, m.Card}}
+			event = &sm.Event{cmdMove, cmdArgs{self, m.Card}}
+		default:
+			log.Printf("unknown command: %v", m.Cmd)
+			continue
+		}
 
-			err = self.gst.sm.Emit(event)
-			if err != nil {
-				log.Println(err)
-				return
-			}
+		err = self.gst.sm.Emit(event)
+		if err != nil {
+			log.Println(err)
+			return //TODO: replace by continue?
 		}
 	}
 }

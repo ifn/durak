@@ -108,6 +108,16 @@ type cmdArgs struct {
 
 //
 
+func logOutOfTurn(pconn *playerConn) {
+	log.Printf("out of turn: %v", pconn.conn.RemoteAddr())
+}
+
+func logWontBeat(c1, c2, t string) {
+	log.Printf("%v won't bit %v, trump is ", c1, c2, t)
+}
+
+//
+
 type gameState struct {
 	// 1. fields that don't change during a game
 
@@ -144,52 +154,17 @@ func (self *gameState) finishRound(res roundResult) {
 		self.aconn = self.nextPlayer(self.dconn)
 	}
 	self.dconn = self.nextPlayer(self.aconn)
+
+	self.aconnStart = self.aconn
+
+	self.dealCards()
 }
 
 func (self *gameState) dealCards() {
-	for _ = range self.hub.conns.Enumerate() {
+	for pc := range self.hub.conns.Enumerate() {
+		log.Println(pc)
+		//give card
 	}
-}
-
-//
-
-func logOutOfTurn(pconn *playerConn) {
-	log.Printf("out of turn: %v", pconn.conn.RemoteAddr())
-}
-
-func logWontBeat(c1, c2, t string) {
-	log.Printf("%v won't bit %v, trump is ", c1, c2, t)
-}
-
-//
-
-func NewGameState() *gameState {
-	gst := new(gameState)
-
-	gst.sm = sm.New(stateCollection, uint(stateCount), uint(cmdCount))
-
-	gst.sm.On(cmdStart,
-		[]sm.State{stateCollection},
-		gst.handleStartInCollection,
-	)
-
-	gst.sm.On(cmdMove,
-		[]sm.State{stateAttack},
-		gst.handleMoveInAttack,
-	)
-	gst.sm.On(cmdMove,
-		[]sm.State{stateDefense},
-		gst.handleMoveInDefense,
-	)
-
-	gst.sm.On(cmdMove,
-		[]sm.State{stateAttack, stateDefense},
-		gst.showDesk,
-	)
-
-	gst.hub = NewHub()
-
-	return gst
 }
 
 // event handlers
@@ -197,20 +172,12 @@ func NewGameState() *gameState {
 // in case error event handler should neither change the gameState,
 // nor return the state value different from passed to it as an argument.
 
-func (self *gameState) showDesk(s sm.State, e *sm.Event) sm.State {
-	desk, err := json.Marshal(DeskMsg{})
-	if err != nil {
-		log.Println(err)
-		return s
-	}
-
-	self.hub.bcastChan <- desk
-
-	return s
-}
-
 func (self *gameState) handleStartInCollection(s sm.State, e *sm.Event) sm.State {
 	self.dealCards()
+
+	//init round
+	//self.chooseStarting()
+	//and set dconn
 
 	return stateAttack
 }
@@ -271,6 +238,49 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 	}
 
 	return stateAttack
+}
+
+func (self *gameState) showDesk(s sm.State, e *sm.Event) sm.State {
+	desk, err := json.Marshal(DeskMsg{})
+	if err != nil {
+		log.Println(err)
+		return s
+	}
+
+	self.hub.bcastChan <- desk
+
+	return s
+}
+
+//
+
+func NewGameState() *gameState {
+	gst := new(gameState)
+
+	gst.sm = sm.New(stateCollection, uint(stateCount), uint(cmdCount))
+
+	gst.sm.On(cmdStart,
+		[]sm.State{stateCollection},
+		gst.handleStartInCollection,
+	)
+
+	gst.sm.On(cmdMove,
+		[]sm.State{stateAttack},
+		gst.handleMoveInAttack,
+	)
+	gst.sm.On(cmdMove,
+		[]sm.State{stateDefense},
+		gst.handleMoveInDefense,
+	)
+
+	gst.sm.On(cmdMove,
+		[]sm.State{stateAttack, stateDefense},
+		gst.showDesk,
+	)
+
+	gst.hub = NewHub()
+
+	return gst
 }
 
 //

@@ -78,10 +78,12 @@ const (
 	stateCount
 )
 
-type roundResult bool
+type roundResult int
 
 const (
-	Beat roundResult = true
+	None roundResult = iota
+	Beat
+	NotBeat
 )
 
 func stateToString(s sm.State) string {
@@ -146,18 +148,21 @@ func (self *gameState) nextPlayer(c *playerConn) *playerConn {
 	return self.hub.conns.(*mapRing).Next(c).(*playerConn)
 }
 
-func (self *gameState) finishRound(res roundResult) {
+func (self *gameState) chooseStarting() *playerConn {
+	return nil
+}
+
+func (self *gameState) setRoles(res roundResult) {
 	switch res {
+	case None:
+		self.aconn = self.chooseStarting()
 	case Beat:
 		self.aconn = self.dconn
-	case !Beat:
+	case NotBeat:
 		self.aconn = self.nextPlayer(self.dconn)
 	}
 	self.dconn = self.nextPlayer(self.aconn)
-
 	self.aconnStart = self.aconn
-
-	self.dealCards()
 }
 
 func (self *gameState) dealCards() {
@@ -167,6 +172,11 @@ func (self *gameState) dealCards() {
 	}
 }
 
+func (self *gameState) newRound(res roundResult) {
+	self.setRoles(res)
+	self.dealCards()
+}
+
 // event handlers
 // event handlers are actually transition functions.
 // in case error event handler should neither change the gameState,
@@ -174,10 +184,7 @@ func (self *gameState) dealCards() {
 
 func (self *gameState) handleStartInCollection(s sm.State, e *sm.Event) sm.State {
 	self.dealCards()
-
-	//init round
-	//self.chooseStarting()
-	//and set dconn
+	self.setRoles(None)
 
 	return stateAttack
 }
@@ -207,7 +214,7 @@ func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {
 
 	// check if all attackers have been polled
 	if aconn == self.aconnStart {
-		self.finishRound(Beat)
+		self.newRound(Beat)
 		return stateAttack
 	}
 
@@ -227,7 +234,7 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 
 	// defender takes the cards
 	if card == "" {
-		self.finishRound(!Beat)
+		self.newRound(NotBeat)
 		return stateAttack
 	}
 

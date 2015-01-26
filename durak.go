@@ -131,6 +131,8 @@ type gameState struct {
 
 	// 2. fields that don't change during a round
 
+	deck []string
+
 	// attacker that started a round
 	aconnStart *playerConn
 	// defender
@@ -166,15 +168,32 @@ func (self *gameState) setRoles(res roundResult) {
 }
 
 func (self *gameState) dealCards() {
-	for pc := range self.hub.conns.Enumerate() {
-		log.Println(pc)
-		//give card
+}
+
+func (self *gameState) takeCards() {
+	conns := self.hub.conns.(*mapRing)
+
+	for pc := range conns.EnumerateFrom(self.aconnStart) {
+		pc := pc.(*playerConn)
+
+		if pc == self.dconn {
+			continue
+		}
+
+		for len(pc.cards) < 6 {
+			if len(self.deck) == 0 {
+				return
+			}
+
+			pc.cards[self.deck[0]] = true
+			self.deck = self.deck[1:]
+		}
 	}
 }
 
 func (self *gameState) newRound(res roundResult) {
+	self.takeCards()
 	self.setRoles(res)
-	self.dealCards()
 }
 
 // event handlers
@@ -295,6 +314,8 @@ func NewGameState() *gameState {
 type playerConn struct {
 	gst *gameState
 
+	cards map[string]bool
+
 	conn      *websocket.Conn
 	hubToConn chan []byte
 }
@@ -374,7 +395,7 @@ func playerHandler(gst *gameState) http.HandlerFunc {
 			return
 		}
 
-		p := &playerConn{gst, conn, make(chan []byte)}
+		p := &playerConn{gst, make(map[string]bool), conn, make(chan []byte)}
 
 		gst.hub.regChan <- p
 		defer func() {

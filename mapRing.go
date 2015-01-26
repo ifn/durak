@@ -46,16 +46,29 @@ func (self *mapRing) Remove(e interface{}) {
 }
 
 func (self *mapRing) Enumerate() <-chan interface{} {
-	n := len(self.m)
-	ch := make(chan interface{}, n)
+	if self.Len() == 0 {
+		ch := make(chan interface{}, 0)
+		close(ch)
+		return ch
+	}
+	return self.EnumerateFrom(self.Front())
+}
+
+func (self *mapRing) EnumerateFrom(e interface{}) <-chan interface{} {
+	ch := make(chan interface{}, self.Len())
 
 	go func() {
-		e := self.r
-		for i := 0; i < n; i++ {
-			e = e.Next()
-			ch <- e.Value
+		defer close(ch)
+
+		r, ok := self.m[e]
+		if !ok {
+			return
 		}
-		close(ch)
+
+		for i := 0; i < self.Len(); i++ {
+			ch <- r.Value
+			r = r.Next()
+		}
 	}()
 
 	return ch
@@ -66,4 +79,15 @@ func (self *mapRing) Next(e interface{}) interface{} {
 		return r.Next().Value
 	}
 	return nil
+}
+
+func (self *mapRing) Front() interface{} {
+	if self.r != nil {
+		return self.r.Next().Value
+	}
+	return nil
+}
+
+func (self *mapRing) Len() int {
+	return len(self.m)
 }

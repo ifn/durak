@@ -173,22 +173,19 @@ func (self *gameState) dealCards() {
 func (self *gameState) takeCards() {
 	conns := self.hub.conns.(*mapRing)
 
-	for pc := range conns.EnumerateFrom(self.aconnStart) {
-		pc := pc.(*playerConn)
-
-		if pc == self.dconn {
-			continue
-		}
-
-		for len(pc.cards) < 6 {
-			if len(self.deck) == 0 {
-				return
-			}
-
+	takeBy := func(pc *playerConn) {
+		for len(self.deck) > 0 && len(pc.cards) < 6 {
 			pc.cards[self.deck[0]] = true
 			self.deck = self.deck[1:]
 		}
 	}
+
+	for pc := range conns.EnumerateFrom(self.aconnStart) {
+		if pc := pc.(*playerConn); pc != self.dconn {
+			takeBy(pc)
+		}
+	}
+	takeBy(self.dconn)
 }
 
 func (self *gameState) newRound(res roundResult) {

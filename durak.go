@@ -189,7 +189,11 @@ func (self *gameState) takeCards() {
 }
 
 func (self *gameState) newRound(res roundResult) {
-	self.takeCards()
+	if res == None {
+		self.dealCards()
+	} else {
+		self.takeCards()
+	}
 	self.setRoles(res)
 }
 
@@ -199,8 +203,7 @@ func (self *gameState) newRound(res roundResult) {
 // nor return the state value different from passed to it as an argument.
 
 func (self *gameState) handleStartInCollection(s sm.State, e *sm.Event) sm.State {
-	self.dealCards()
-	self.setRoles(None)
+	self.newRound(None)
 
 	return stateAttack
 }

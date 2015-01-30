@@ -147,7 +147,10 @@ type gameState struct {
 }
 
 func (self *gameState) nextPlayer(c *playerConn) *playerConn {
-	return self.hub.conns.(*mapRing).Next(c).(*playerConn)
+	if pc := self.hub.conns.(*mapRing).Next(c); pc != nil {
+		return pc.(*playerConn)
+	}
+	return nil
 }
 
 func (self *gameState) chooseStarting() *playerConn {

@@ -168,24 +168,28 @@ func (self *gameState) setRoles(res roundResult) {
 }
 
 func (self *gameState) dealCards() {
+	for i := 0; i < 6; i++ {
+		for pc := range self.hub.conns.Enumerate() {
+			pc.(*playerConn).takeCard()
+		}
+	}
 }
 
 func (self *gameState) takeCards() {
 	conns := self.hub.conns.(*mapRing)
 
-	takeBy := func(pc *playerConn) {
+	takeCards := func(pc *playerConn) {
 		for len(self.deck) > 0 && len(pc.cards) < 6 {
-			pc.cards[self.deck[0]] = true
-			self.deck = self.deck[1:]
+			pc.takeCard()
 		}
 	}
 
 	for pc := range conns.EnumerateFrom(self.aconnStart) {
 		if pc := pc.(*playerConn); pc != self.dconn {
-			takeBy(pc)
+			takeCards(pc)
 		}
 	}
-	takeBy(self.dconn)
+	takeCards(self.dconn)
 }
 
 func (self *gameState) newRound(res roundResult) {
@@ -318,6 +322,13 @@ type playerConn struct {
 
 	conn      *websocket.Conn
 	hubToConn chan []byte
+}
+
+func (self *playerConn) takeCard() {
+	if deck := self.gst.deck; len(deck) > 0 {
+		self.cards[deck[0]] = true
+		self.gst.deck = deck[1:]
+	}
 }
 
 func (self *playerConn) write() {

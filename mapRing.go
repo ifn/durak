@@ -91,3 +91,16 @@ func (self *mapRing) Front() interface{} {
 func (self *mapRing) Len() int {
 	return len(self.m)
 }
+
+func (self *mapRing) Nth(n int) interface{} {
+	if n < 0 || n >= self.Len() {
+		return nil
+	}
+
+	r := self.r
+	for i := 0; i < n; i++ {
+		r = r.Next()
+	}
+
+	return r.Value
+}

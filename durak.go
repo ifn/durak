@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"regexp"
 	"runtime"
+	"time"
 
 	"github.com/gorilla/websocket"
 	sm "github.com/ifn/go-statemachine"
@@ -151,14 +153,14 @@ type gameState struct {
 }
 
 func (self *gameState) nextPlayer(c *playerConn) *playerConn {
-	if pc := self.hub.conns.(*mapRing).Next(c); pc != nil {
-		return pc.(*playerConn)
-	}
-	return nil
+	return self.hub.conns.(*mapRing).Next(c).(*playerConn)
 }
 
 func (self *gameState) chooseStarting() *playerConn {
-	return nil
+	conns := self.hub.conns.(*mapRing)
+
+	rand.Seed(time.Now().UnixNano())
+	return conns.Nth(rand.Intn(conns.Len())).(*playerConn)
 }
 
 func (self *gameState) setRoles(res roundResult) {

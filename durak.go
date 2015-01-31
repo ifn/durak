@@ -25,7 +25,14 @@ type PlayerMsg struct {
 
 //
 
-var Order map[string]int = map[string]int{
+var Suits []string = []string{
+	"S",
+	"C",
+	"H",
+	"D",
+}
+
+var CardValues map[string]int = map[string]int{
 	"6": 6, "7": 7, "8": 8, "9": 9, "10": 10,
 	"J": 11,
 	"Q": 12,
@@ -36,10 +43,10 @@ var Order map[string]int = map[string]int{
 func higher(c0, c1, t string) int {
 	// c0 and c1 have the same suit
 	if c0[0] == c1[0] {
-		if Order[c0[1:]] > Order[c1[1:]] {
+		if CardValues[c0[1:]] > CardValues[c1[1:]] {
 			return 1
 		}
-		if Order[c0[1:]] < Order[c1[1:]] {
+		if CardValues[c0[1:]] < CardValues[c1[1:]] {
 			return -1
 		}
 		return 0
@@ -160,6 +167,29 @@ func (self *gameState) popCard() (card string) {
 	return
 }
 
+func (self *gameState) initDeck() {
+	numCards := len(Suits) * len(CardValues)
+	self.deck = make([]string, 0, numCards+ /*for trump*/ 1)
+
+	deck := make([]string, 0, numCards)
+	for i := range Suits {
+		for cv := range CardValues {
+			deck = append(deck, Suits[i]+cv)
+		}
+	}
+
+	order := rand.Perm(numCards)
+	for i := range order {
+		self.deck = append(self.deck, deck[order[i]])
+	}
+}
+
+func (self *gameState) setTrump() {
+	card := self.popCard()
+	self.trump = card[:1]
+	self.deck = append(self.deck, card)
+}
+
 func (self *gameState) nextPlayer(c *playerConn) *playerConn {
 	return self.hub.conns.(*mapRing).Next(c).(*playerConn)
 }
@@ -167,7 +197,6 @@ func (self *gameState) nextPlayer(c *playerConn) *playerConn {
 func (self *gameState) chooseStarting() *playerConn {
 	conns := self.hub.conns.(*mapRing)
 
-	rand.Seed(time.Now().UnixNano())
 	return conns.Nth(rand.Intn(conns.Len())).(*playerConn)
 }
 
@@ -211,9 +240,9 @@ func (self *gameState) takeCards() {
 
 func (self *gameState) newRound(res roundResult) {
 	if res == None {
-		//
+		self.initDeck()
 		self.dealCards()
-		self.trump = self.popCard()
+		self.setTrump()
 	} else {
 		self.takeCards()
 	}
@@ -458,5 +487,7 @@ func main() {
 }
 
 func init() {
+	rand.Seed(time.Now().UnixNano())
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 }

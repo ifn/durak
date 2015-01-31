@@ -152,6 +152,14 @@ type gameState struct {
 	cardToBeat string
 }
 
+func (self *gameState) popCard() (card string) {
+	if deck := self.deck; len(deck) > 0 {
+		card = deck[0]
+		self.deck = deck[1:]
+	}
+	return
+}
+
 func (self *gameState) nextPlayer(c *playerConn) *playerConn {
 	return self.hub.conns.(*mapRing).Next(c).(*playerConn)
 }
@@ -203,7 +211,9 @@ func (self *gameState) takeCards() {
 
 func (self *gameState) newRound(res roundResult) {
 	if res == None {
+		//
 		self.dealCards()
+		self.trump = self.popCard()
 	} else {
 		self.takeCards()
 	}
@@ -338,9 +348,8 @@ type playerConn struct {
 }
 
 func (self *playerConn) takeCard() {
-	if deck := self.gst.deck; len(deck) > 0 {
-		self.cards[deck[0]] = true
-		self.gst.deck = deck[1:]
+	if card := self.gst.popCard(); card != "" {
+		self.cards[card] = true
 	}
 }
 

@@ -118,6 +118,10 @@ func logWontBeat(c1, c2, t string) {
 	log.Printf("%v won't bit %v, trump is ", c1, c2, t)
 }
 
+func logNoQuorum(n int) {
+	log.Printf("no quorum: %v player(s)", n)
+}
+
 //
 
 type gameState struct {
@@ -210,8 +214,12 @@ func (self *gameState) newRound(res roundResult) {
 // nor return the state value different from passed to it as an argument.
 
 func (self *gameState) handleStartInCollection(s sm.State, e *sm.Event) sm.State {
-	self.newRound(None)
+	if n := self.hub.conns.(*mapRing).Len(); n < 2 {
+		logNoQuorum(n)
+		return s
+	}
 
+	self.newRound(None)
 	return stateAttack
 }
 

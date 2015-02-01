@@ -124,7 +124,7 @@ func logOutOfTurn(pconn *playerConn) {
 }
 
 func logWontBeat(c1, c2, t string) {
-	log.Printf("%v won't bit %v, trump is ", c1, c2, t)
+	log.Printf("%v won't bit %v, trump is %v", c1, c2, t)
 }
 
 func logNoQuorum(n int) {

@@ -370,7 +370,7 @@ func NewGameState() *gameState {
 type playerConn struct {
 	gst *gameState
 
-	cards map[string]bool
+	cards map[string]struct{}
 
 	conn      *websocket.Conn
 	hubToConn chan []byte
@@ -378,7 +378,7 @@ type playerConn struct {
 
 func (self *playerConn) takeCard() {
 	if card := self.gst.popCard(); card != "" {
-		self.cards[card] = true
+		self.cards[card] = struct{}{}
 	}
 }
 
@@ -457,7 +457,7 @@ func playerHandler(gst *gameState) http.HandlerFunc {
 			return
 		}
 
-		p := &playerConn{gst, make(map[string]bool), conn, make(chan []byte)}
+		p := &playerConn{gst, make(map[string]struct{}), conn, make(chan []byte)}
 
 		gst.hub.regChan <- p
 		defer func() {

@@ -334,6 +334,11 @@ func (self *gameState) showDesk(s sm.State, e *sm.Event) sm.State {
 	return s
 }
 
+func (self *gameState) log(s sm.State, e *sm.Event) sm.State {
+	log.Println(self)
+	return s
+}
+
 //
 
 func NewGameState() *gameState {
@@ -341,9 +346,18 @@ func NewGameState() *gameState {
 
 	gst.sm = sm.New(stateCollection, uint(stateCount), uint(cmdCount))
 
+	//TODO: refactor this
 	gst.sm.On(cmdStart,
 		[]sm.State{stateCollection},
 		gst.handleStartInCollection,
+	)
+	gst.sm.On(cmdStart,
+		[]sm.State{stateCollection},
+		gst.showDesk,
+	)
+	gst.sm.On(cmdStart,
+		[]sm.State{stateCollection},
+		gst.log,
 	)
 
 	gst.sm.On(cmdMove,
@@ -358,6 +372,10 @@ func NewGameState() *gameState {
 	gst.sm.On(cmdMove,
 		[]sm.State{stateAttack, stateDefense},
 		gst.showDesk,
+	)
+	gst.sm.On(cmdMove,
+		[]sm.State{stateAttack, stateDefense},
+		gst.log,
 	)
 
 	gst.hub = NewHub()

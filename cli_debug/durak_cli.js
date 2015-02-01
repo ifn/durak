@@ -10,24 +10,33 @@ var COMMANDS = {
 var ws = new WebSocket("ws://localhost:" + PORT);
 
 var msgStart = {command: COMMANDS.start};
-var msgCard = {command: COMMANDS.move, card: "SQ"};
 var msgNoCard = {command: COMMANDS.move};
 var msgUnknown = {command: 2};
 
 ws.onmessage = function (event) {
-    console.log(event.data);
+    console.log("received:", event.data);
 };
 
 ws.sendMsg = function (msg) {
     return function () {
         var jsonMsg = JSON.stringify(msg);
         ws.send(jsonMsg);
-        console.log(jsonMsg);
+        console.log("sent:", jsonMsg);
+        return false
     }
+}
+
+function readCard () {
+    var card = document.getElementById("input_send_card").value;
+    return {command: COMMANDS.move, card: card};
+}
+
+function sendCard () {
+    return ws.sendMsg(readCard())();
 }
 
 //
 
-document.getElementById("btn_go").onclick = ws.sendMsg(msgStart)
-document.getElementById("btn_card").onclick = ws.sendMsg(msgCard)
-document.getElementById("btn_no_card").onclick = ws.sendMsg(msgNoCard)
+document.getElementById("btn_go").onclick = ws.sendMsg(msgStart);
+document.getElementById("btn_no_card").onclick = ws.sendMsg(msgNoCard);
+document.getElementById("frm_send_card").onsubmit = sendCard;

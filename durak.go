@@ -131,6 +131,10 @@ func logNoQuorum(n int) {
 	log.Printf("no quorum: %v player(s)", n)
 }
 
+func logStrangeCard(c string, pc *playerConn) {
+	log.Printf("%v doesn't own %v", pc, c)
+}
+
 //
 
 type gameState struct {
@@ -152,6 +156,8 @@ type gameState struct {
 	dconn *playerConn
 
 	// 3. fields that change during a round
+
+	desk [][]string
 
 	// attacker
 	aconn *playerConn
@@ -239,11 +245,15 @@ func (self *gameState) takeCards() {
 }
 
 func (self *gameState) newRound(res roundResult) {
-	if res == None {
+	switch res {
+	case None:
 		self.initDeck()
 		self.dealCards()
 		self.setTrump()
-	} else {
+	case NotBeat:
+		// add desk to defender's stock
+		self.takeCards()
+	case Beat:
 		self.takeCards()
 	}
 	self.setRoles(res)
@@ -276,6 +286,13 @@ func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {
 
 	// attacker sent the card
 	if card != "" {
+		// throw card to desk
+		if _, ok := conn.cards[card]; !ok {
+			logStrangeCard(card, conn)
+			return s
+		}
+		conn.toDesk(card)
+
 		self.cardToBeat = card
 		return stateDefense
 	}
@@ -318,6 +335,13 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 		logWontBeat(card, self.cardToBeat, self.trump)
 		return s
 	}
+
+	// throw card to desk
+	if _, ok := conn.cards[card]; !ok {
+		logStrangeCard(card, conn)
+		return s
+	}
+	conn.toDesk(card)
 
 	return stateAttack
 }
@@ -398,6 +422,12 @@ func (self *playerConn) takeCard() {
 	if card := self.gst.popCard(); card != "" {
 		self.cards[card] = struct{}{}
 	}
+}
+
+func (self *playerConn) toDesk(card string) {
+	delete(self.cards, card)
+
+	// add card to desk
 }
 
 func (self *playerConn) write() {

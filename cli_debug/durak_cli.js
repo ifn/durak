@@ -26,17 +26,14 @@ ws.sendMsg = function (msg) {
     }
 }
 
-function readCard () {
+function sendInputCard () {
     var card = document.getElementById("input_send_card").value;
-    return {command: COMMANDS.move, card: card};
-}
-
-function sendCard () {
-    return ws.sendMsg(readCard())();
+    var msg = {command: COMMANDS.move, card: card};
+    return ws.sendMsg(msg)();
 }
 
 //
 
 document.getElementById("btn_go").onclick = ws.sendMsg(msgStart);
 document.getElementById("btn_no_card").onclick = ws.sendMsg(msgNoCard);
-document.getElementById("frm_send_card").onsubmit = sendCard;
+document.getElementById("frm_send_card").onsubmit = sendInputCard;

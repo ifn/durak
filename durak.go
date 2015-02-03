@@ -221,7 +221,7 @@ func (self *gameState) setRoles(res roundResult) {
 func (self *gameState) dealCards() {
 	for i := 0; i < 6; i++ {
 		for pc := range self.hub.conns.Enumerate() {
-			pc.(*playerConn).takeCard()
+			pc.(*playerConn).fromDeck()
 		}
 	}
 }
@@ -231,7 +231,7 @@ func (self *gameState) takeCards() {
 
 	takeCards := func(pc *playerConn) {
 		for len(self.deck) > 0 && len(pc.cards) < 6 {
-			pc.takeCard()
+			pc.fromDeck()
 		}
 	}
 
@@ -421,7 +421,7 @@ type playerConn struct {
 	hubToConn chan []byte
 }
 
-func (self *playerConn) takeCard() {
+func (self *playerConn) fromDeck() {
 	if card := self.gst.popCard(); card != "" {
 		self.cards[card] = struct{}{}
 	}

@@ -177,15 +177,15 @@ func (self *gameState) initDeck() {
 	numCards := len(Suits) * len(CardValues)
 
 	deck := make([]string, 0, numCards)
-	for i := range Suits {
+	for _, suit := range Suits {
 		for cv := range CardValues {
-			deck = append(deck, Suits[i]+cv)
+			deck = append(deck, suit+cv)
 		}
 	}
 
 	order := rand.Perm(numCards)
-	for i := range order {
-		self.deck = append(self.deck, deck[order[i]])
+	for _, pos := range order {
+		self.deck = append(self.deck, deck[pos])
 	}
 }
 

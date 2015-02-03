@@ -15,7 +15,7 @@ import (
 )
 
 type DeskMsg struct {
-	Desk [][]string `json:"desk"`
+	Desk []string `json:"desk"`
 }
 
 type PlayerMsg struct {
@@ -157,7 +157,7 @@ type gameState struct {
 
 	// 3. fields that change during a round
 
-	desk [][]string
+	desk []string
 
 	// attacker
 	aconn *playerConn
@@ -175,7 +175,6 @@ func (self *gameState) popCard() (card string) {
 
 func (self *gameState) initDeck() {
 	numCards := len(Suits) * len(CardValues)
-	self.deck = make([]string, 0, numCards+ /*for trump*/ 1)
 
 	deck := make([]string, 0, numCards)
 	for i := range Suits {
@@ -251,9 +250,10 @@ func (self *gameState) newRound(res roundResult) {
 		self.dealCards()
 		self.setTrump()
 	case NotBeat:
-		// add desk to defender's stock
+		self.dconn.fromDesk()
 		self.takeCards()
 	case Beat:
+		self.desk = self.desk[:0]
 		self.takeCards()
 	}
 	self.setRoles(res)
@@ -347,7 +347,7 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 }
 
 func (self *gameState) showDesk(s sm.State, e *sm.Event) sm.State {
-	desk, err := json.Marshal(DeskMsg{})
+	desk, err := json.Marshal(DeskMsg{self.desk})
 	if err != nil {
 		log.Println(err)
 		return s
@@ -402,6 +402,9 @@ func NewGameState() *gameState {
 		gst.log,
 	)
 
+	gst.deck = make([]string, 0, len(Suits)*len(CardValues)+ /*for trump*/ 1)
+	gst.desk = make([]string, 0, 12)
+
 	gst.hub = NewHub()
 
 	return gst
@@ -427,7 +430,15 @@ func (self *playerConn) takeCard() {
 func (self *playerConn) toDesk(card string) {
 	delete(self.cards, card)
 
-	// add card to desk
+	self.gst.desk = append(self.gst.desk, card)
+}
+
+func (self *playerConn) fromDesk() {
+	for _, card := range self.gst.desk {
+		self.cards[card] = struct{}{}
+	}
+
+	self.gst.desk = self.gst.desk[:0]
 }
 
 func (self *playerConn) write() {

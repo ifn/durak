@@ -370,18 +370,13 @@ func NewGameState() *gameState {
 
 	gst.sm = sm.New(stateCollection, uint(stateCount), uint(cmdCount))
 
-	//TODO: refactor this
-	gst.sm.On(cmdStart,
+	gst.sm.OnChain(cmdStart,
 		[]sm.State{stateCollection},
-		gst.handleStartInCollection,
-	)
-	gst.sm.On(cmdStart,
-		[]sm.State{stateCollection},
-		gst.showDesk,
-	)
-	gst.sm.On(cmdStart,
-		[]sm.State{stateCollection},
-		gst.log,
+		[]sm.EventHandler{
+			gst.handleStartInCollection,
+			gst.showDesk,
+			gst.log,
+		},
 	)
 
 	gst.sm.On(cmdMove,
@@ -393,13 +388,12 @@ func NewGameState() *gameState {
 		gst.handleMoveInDefense,
 	)
 
-	gst.sm.On(cmdMove,
+	gst.sm.OnChain(cmdMove,
 		[]sm.State{stateAttack, stateDefense},
-		gst.showDesk,
-	)
-	gst.sm.On(cmdMove,
-		[]sm.State{stateAttack, stateDefense},
-		gst.log,
+		[]sm.EventHandler{
+			gst.showDesk,
+			gst.log,
+		},
 	)
 
 	gst.deck = make([]string, 0, len(Suits)*len(CardValues)+ /*for trump*/ 1)

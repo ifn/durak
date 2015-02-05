@@ -127,8 +127,8 @@ func logWontBeat(c1, c2, t string) {
 	log.Printf("%v won't bit %v, trump is %v", c1, c2, t)
 }
 
-func logNoQuorum(n int) {
-	log.Printf("no quorum: %v player(s)", n)
+func logWrongNumber(n int) {
+	log.Printf("wrong number of players: %v", n)
 }
 
 func logStrangeCard(c string, pc *playerConn) {
@@ -266,8 +266,8 @@ func (self *gameState) newRound(res roundResult) {
 // nor return the state value different from passed to it as an argument.
 
 func (self *gameState) handleStartInCollection(s sm.State, e *sm.Event) sm.State {
-	if n := self.hub.conns.(*mapRing).Len(); n < 2 {
-		logNoQuorum(n)
+	if n := self.hub.conns.(*mapRing).Len(); n < 2 || n > 6 {
+		logWrongNumber(n)
 		return s
 	}
 

@@ -467,9 +467,9 @@ func (self *playerConn) read() {
 		}
 	}()
 
-	var m PlayerMsg
-
 	for {
+		var m PlayerMsg
+
 		err := self.conn.ReadJSON(&m)
 		if err != nil {
 			log.Println(err)

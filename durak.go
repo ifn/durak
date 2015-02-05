@@ -257,6 +257,7 @@ func (self *gameState) newRound(res roundResult) {
 		self.takeCards()
 	}
 	self.setRoles(res)
+	self.cardToBeat = ""
 }
 
 // event handlers

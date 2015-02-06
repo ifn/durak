@@ -189,10 +189,15 @@ func (self *gameState) initDeck() {
 	}
 }
 
-func (self *gameState) setTrump() {
-	card := self.popCard()
-	self.trump = card[:1]
-	self.deck = append(self.deck, card)
+//TODO: don't like it
+func (self *gameState) setTrump(card string) {
+	tcard := self.popCard()
+	if tcard == "" {
+		tcard = card
+	} else {
+		self.deck = append(self.deck, tcard)
+	}
+	self.trump = tcard[:1]
 }
 
 func (self *gameState) nextPlayer(c *playerConn) *playerConn {
@@ -218,12 +223,13 @@ func (self *gameState) setRoles(res roundResult) {
 	self.aconnStart = self.aconn
 }
 
-func (self *gameState) dealCards() {
+func (self *gameState) dealCards() (card string) {
 	for i := 0; i < 6; i++ {
 		for pc := range self.hub.conns.Enumerate() {
-			pc.(*playerConn).fromDeck()
+			card = pc.(*playerConn).fromDeck()
 		}
 	}
+	return
 }
 
 func (self *gameState) takeCards() {
@@ -247,8 +253,8 @@ func (self *gameState) newRound(res roundResult) {
 	switch res {
 	case None:
 		self.initDeck()
-		self.dealCards()
-		self.setTrump()
+		card := self.dealCards()
+		self.setTrump(card)
 	case NotBeat:
 		self.dconn.fromDesk()
 		self.takeCards()
@@ -416,10 +422,11 @@ type playerConn struct {
 	hubToConn chan []byte
 }
 
-func (self *playerConn) fromDeck() {
-	if card := self.gst.popCard(); card != "" {
+func (self *playerConn) fromDeck() (card string) {
+	if card = self.gst.popCard(); card != "" {
 		self.cards[card] = struct{}{}
 	}
+	return
 }
 
 func (self *playerConn) toDesk(card string) {

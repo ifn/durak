@@ -165,51 +165,6 @@ type gameState struct {
 	cardToBeat string
 }
 
-func (self *gameState) popCard() (card string) {
-	if deck := self.deck; len(deck) > 0 {
-		card = deck[0]
-		self.deck = deck[1:]
-	}
-	return
-}
-
-func (self *gameState) initDeck() {
-	numCards := len(Suits) * len(CardValues)
-
-	deck := make([]string, 0, numCards)
-	for _, suit := range Suits {
-		for cv := range CardValues {
-			deck = append(deck, suit+cv)
-		}
-	}
-
-	order := rand.Perm(numCards)
-	for _, pos := range order {
-		self.deck = append(self.deck, deck[pos])
-	}
-}
-
-//TODO: don't like it
-func (self *gameState) setTrump(card string) {
-	tcard := self.popCard()
-	if tcard == "" {
-		tcard = card
-	} else {
-		self.deck = append(self.deck, tcard)
-	}
-	self.trump = tcard[:1]
-}
-
-func (self *gameState) nextPlayer(c *playerConn) *playerConn {
-	return self.hub.conns.(*mapRing).Next(c).(*playerConn)
-}
-
-func (self *gameState) chooseStarting() *playerConn {
-	conns := self.hub.conns.(*mapRing)
-
-	return conns.Nth(rand.Intn(conns.Len())).(*playerConn)
-}
-
 func (self *gameState) markInactive() {
 	if len(self.deck) == 0 {
 		for pc := range self.hub.conns.Enumerate() {
@@ -229,17 +184,40 @@ func (self *gameState) firstActive(c *playerConn) *playerConn {
 	return nil
 }
 
-func (self *gameState) setRoles(res roundResult) {
-	switch res {
-	case None:
-		self.aconn = self.chooseStarting()
-	case Beat:
-		self.aconn = self.dconn
-	case NotBeat:
-		self.aconn = self.nextPlayer(self.dconn)
+//
+
+func (self *gameState) nextPlayer(c *playerConn) *playerConn {
+	return self.hub.conns.(*mapRing).Next(c).(*playerConn)
+}
+
+func (self *gameState) nextActivePlayer(c *playerConn) *playerConn {
+	return self.firstActive(self.nextPlayer(c))
+}
+
+//
+
+func (self *gameState) initDeck() {
+	numCards := len(Suits) * len(CardValues)
+
+	deck := make([]string, 0, numCards)
+	for _, suit := range Suits {
+		for cv := range CardValues {
+			deck = append(deck, suit+cv)
+		}
 	}
-	self.dconn = self.nextPlayer(self.aconn)
-	self.aconnStart = self.aconn
+
+	order := rand.Perm(numCards)
+	for _, pos := range order {
+		self.deck = append(self.deck, deck[pos])
+	}
+}
+
+func (self *gameState) popCard() (card string) {
+	if deck := self.deck; len(deck) > 0 {
+		card = deck[0]
+		self.deck = deck[1:]
+	}
+	return
 }
 
 func (self *gameState) dealCards() (card string) {
@@ -266,6 +244,40 @@ func (self *gameState) takeCards() {
 		}
 	}
 	takeCards(self.dconn)
+}
+
+//
+
+//TODO: don't like it
+func (self *gameState) setTrump(card string) {
+	tcard := self.popCard()
+	if tcard == "" {
+		tcard = card
+	} else {
+		self.deck = append(self.deck, tcard)
+	}
+	self.trump = tcard[:1]
+}
+
+func (self *gameState) chooseStarting() *playerConn {
+	conns := self.hub.conns.(*mapRing)
+
+	return conns.Nth(rand.Intn(conns.Len())).(*playerConn)
+}
+
+//
+
+func (self *gameState) setRoles(res roundResult) {
+	switch res {
+	case None:
+		self.aconn = self.chooseStarting()
+	case Beat:
+		self.aconn = self.dconn
+	case NotBeat:
+		self.aconn = self.nextPlayer(self.dconn)
+	}
+	self.dconn = self.nextPlayer(self.aconn)
+	self.aconnStart = self.aconn
 }
 
 func (self *gameState) newRound(res roundResult) {

@@ -210,6 +210,25 @@ func (self *gameState) chooseStarting() *playerConn {
 	return conns.Nth(rand.Intn(conns.Len())).(*playerConn)
 }
 
+func (self *gameState) markInactive() {
+	if len(self.deck) == 0 {
+		for pc := range self.hub.conns.Enumerate() {
+			if pc := pc.(*playerConn); len(pc.cards) == 0 {
+				pc.active = false
+			}
+		}
+	}
+}
+
+func (self *gameState) firstActive(c *playerConn) *playerConn {
+	for pc := range self.hub.conns.(*mapRing).EnumerateFrom(c) {
+		if pc := pc.(*playerConn); pc.active {
+			return pc
+		}
+	}
+	return nil
+}
+
 func (self *gameState) setRoles(res roundResult) {
 	switch res {
 	case None:
@@ -262,6 +281,7 @@ func (self *gameState) newRound(res roundResult) {
 		self.desk = self.desk[:0]
 		self.takeCards()
 	}
+	self.markInactive()
 	self.setRoles(res)
 	self.cardToBeat = ""
 }
@@ -416,7 +436,8 @@ func NewGameState() *gameState {
 type playerConn struct {
 	gst *gameState
 
-	cards map[string]struct{}
+	cards  map[string]struct{}
+	active bool
 
 	conn      *websocket.Conn
 	hubToConn chan []byte
@@ -518,7 +539,7 @@ func playerHandler(gst *gameState) http.HandlerFunc {
 			return
 		}
 
-		p := &playerConn{gst, make(map[string]struct{}), conn, make(chan []byte)}
+		p := &playerConn{gst, make(map[string]struct{}), true, conn, make(chan []byte)}
 
 		gst.hub.regChan <- p
 		defer func() {

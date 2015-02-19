@@ -165,17 +165,20 @@ type gameState struct {
 	cardToBeat string
 }
 
-func (self *gameState) markInactive() {
+func (self *gameState) markInactive() (numActive int) {
 	if len(self.deck) == 0 {
 		for pc := range self.hub.conns.Enumerate() {
 			if pc := pc.(*playerConn); len(pc.cards) == 0 {
 				pc.active = false
+				continue
 			}
+			numActive++
 		}
 	}
+	return
 }
 
-func (self *gameState) firstActive(c *playerConn) *playerConn {
+func (self *gameState) activeFrom(c *playerConn) *playerConn {
 	for pc := range self.hub.conns.(*mapRing).EnumerateFrom(c) {
 		if pc := pc.(*playerConn); pc.active {
 			return pc
@@ -184,14 +187,12 @@ func (self *gameState) firstActive(c *playerConn) *playerConn {
 	return nil
 }
 
-//
-
 func (self *gameState) nextPlayer(c *playerConn) *playerConn {
 	return self.hub.conns.(*mapRing).Next(c).(*playerConn)
 }
 
-func (self *gameState) nextActivePlayer(c *playerConn) *playerConn {
-	return self.firstActive(self.nextPlayer(c))
+func (self *gameState) activeAfter(c *playerConn) *playerConn {
+	return self.activeFrom(self.nextPlayer(c))
 }
 
 //
@@ -272,11 +273,11 @@ func (self *gameState) setRoles(res roundResult) {
 	case None:
 		self.aconn = self.chooseStarting()
 	case Beat:
-		self.aconn = self.dconn
+		self.aconn = self.activeFrom(self.dconn)
 	case NotBeat:
-		self.aconn = self.nextPlayer(self.dconn)
+		self.aconn = self.activeAfter(self.dconn)
 	}
-	self.dconn = self.nextPlayer(self.aconn)
+	self.dconn = self.activeAfter(self.aconn)
 	self.aconnStart = self.aconn
 }
 
@@ -293,7 +294,12 @@ func (self *gameState) newRound(res roundResult) {
 		self.desk = self.desk[:0]
 		self.takeCards()
 	}
-	self.markInactive()
+
+	numActive := self.markInactive()
+	if numActive < 2 {
+		//game over
+	}
+
 	self.setRoles(res)
 	self.cardToBeat = ""
 }
@@ -338,9 +344,9 @@ func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {
 
 	// attacker sent no card
 
-	aconn := self.nextPlayer(self.aconn)
+	aconn := self.activeAfter(self.aconn)
 	if aconn == self.dconn {
-		aconn = self.nextPlayer(aconn)
+		aconn = self.activeAfter(aconn)
 	}
 
 	// check if all attackers have been polled

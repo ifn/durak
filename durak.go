@@ -80,9 +80,9 @@ const (
 
 const (
 	stateCollection sm.State = iota
-
 	stateAttack
 	stateDefense
+	stateGameOver
 
 	stateCount
 )
@@ -281,7 +281,7 @@ func (self *gameState) setRoles(res roundResult) {
 	self.aconnStart = self.aconn
 }
 
-func (self *gameState) newRound(res roundResult) {
+func (self *gameState) newRound(res roundResult) sm.State {
 	switch res {
 	case None:
 		self.initDeck()
@@ -297,11 +297,13 @@ func (self *gameState) newRound(res roundResult) {
 
 	numActive := self.markInactive()
 	if numActive < 2 {
-		//game over
+		return stateGameOver
 	}
 
 	self.setRoles(res)
 	self.cardToBeat = ""
+
+	return stateAttack
 }
 
 // event handlers
@@ -315,8 +317,7 @@ func (self *gameState) handleStartInCollection(s sm.State, e *sm.Event) sm.State
 		return s
 	}
 
-	self.newRound(None)
-	return stateAttack
+	return self.newRound(None)
 }
 
 func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {
@@ -351,8 +352,7 @@ func (self *gameState) handleMoveInAttack(s sm.State, e *sm.Event) sm.State {
 
 	// check if all attackers have been polled
 	if aconn == self.aconnStart {
-		self.newRound(Beat)
-		return stateAttack
+		return self.newRound(Beat)
 	}
 
 	self.aconn = aconn
@@ -371,8 +371,7 @@ func (self *gameState) handleMoveInDefense(s sm.State, e *sm.Event) sm.State {
 
 	// defender takes the cards
 	if card == "" {
-		self.newRound(NotBeat)
-		return stateAttack
+		return self.newRound(NotBeat)
 	}
 
 	// check that the sent card is capable to beat
